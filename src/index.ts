@@ -41,8 +41,6 @@ rl.on("line", (line) => {
 
     switch (command) {
         case Commands.EXIT:
-            process.kill(process.pid, "SIGINT");
-            break;
         case Commands.QUIT:
             process.kill(process.pid, "SIGINT");
             break;
