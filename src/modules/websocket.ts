@@ -1,8 +1,7 @@
 import { logger } from "@/logger";
 import { WebSocket, WebSocketServer } from "ws";
-import { onlineStreamers, StreamData } from "./twitch";
-
-let wss: WebSocketServer;
+import { twitchService, StreamData } from "./twitch";
+import { config } from "@/config";
 
 enum WebSocketMessageType {
     MESSAGE = "MESSAGE",
@@ -18,100 +17,110 @@ interface WebSocketMessage {
     payload: any;
 }
 
-export function startWebsocket(port: number): void {
-    logger.info("Initialisation du serveur WebSocket");
+export class WebSocketService {
+    private wss!: WebSocketServer;
 
-    wss = new WebSocketServer({ port: port });
+    constructor(private port: number) {}
 
-    wss.on("listening", () => {
-        logger.info("WebSocket server listening on port", port);
-    });
+    public start(): void {
+        logger.info("Initialisation du serveur WebSocket");
 
-    wss.on("connection", (ws) => {
-        logger.info("Nouvelle connexion");
+        this.wss = new WebSocketServer({ port: this.port });
+
+        this.wss.on("listening", () => {
+            logger.info(`WebSocket server listening on port ${this.port}`);
+        });
+
+        this.wss.on("connection", (ws) => {
+            logger.info("Nouvelle connexion");
+            const message: WebSocketMessage = {
+                type: WebSocketMessageType.STREAMS,
+                payload: twitchService.onlineStreamers,
+            };
+
+            ws.send(JSON.stringify(message));
+
+            ws.on("close", () => {
+                logger.info("Déconnexion");
+            });
+
+            ws.on("message", (message) => {
+                const parsedMessage: WebSocketMessage = JSON.parse(message.toString());
+                this.onMessage(ws, parsedMessage);
+            });
+        });
+
+        this.wss.on("error", (error: { message: any; }) => {
+            logger.error(`WebSocket server error: ${error.message}`);
+        });
+
+        logger.info(`WebSocket server started on port ${this.port}`);
+    }
+
+    private onMessage(ws: WebSocket, message: WebSocketMessage): void {
+        switch (message.type) {
+            case WebSocketMessageType.MESSAGE:
+                logger.info("Message reçu :", message.payload);
+                break;
+            case WebSocketMessageType.ASK_STREAMS:
+                const streamsMessage: WebSocketMessage = {
+                    type: WebSocketMessageType.STREAMS,
+                    payload: twitchService.onlineStreamers,
+                };
+                this.send(streamsMessage, ws);
+                break;
+            case WebSocketMessageType.ASK_STREAM:
+                const streamData = twitchService.onlineStreamers.find((stream) => stream.user_name === message.payload);
+                if (streamData) {
+                    const streamMessage: WebSocketMessage = {
+                        type: WebSocketMessageType.STREAMS,
+                        payload: streamData,
+                    };
+                    this.send(streamMessage, ws);
+                } else {
+                    logger.warn("Stream introuvable :", message.payload);
+                    const errorMessage: WebSocketMessage = {
+                        type: WebSocketMessageType.MESSAGE,
+                        payload: `Stream introuvable : ${message.payload}`,
+                    };
+                    this.send(errorMessage, ws);
+                }
+                break;
+            default:
+                logger.warn("Message non géré :", JSON.stringify(message));
+                break;
+        }
+    }
+
+    private send(message: WebSocketMessage, ws: WebSocket): void {
+        ws.send(JSON.stringify(message));
+    }
+
+    public broadcast(message: string): void {
+        this.wss.clients.forEach((client) => {
+            if (client.readyState === 1) {
+                client.send(message);
+            }
+        });
+    }
+
+    public onStreamOnline(streamData: StreamData): void {
         const message: WebSocketMessage = {
-            type: WebSocketMessageType.STREAMS,
-            payload: onlineStreamers,
+            type: WebSocketMessageType.NEW_STREAM_ONLINE,
+            payload: streamData,
         };
 
-        ws.send(JSON.stringify(message));
+        this.broadcast(JSON.stringify(message));
+    }
 
-        ws.on("close", () => {
-            logger.info("Déconnexion");
-        });
+    public onStreamOffline(streamData: StreamData): void {
+        const message: WebSocketMessage = {
+            type: WebSocketMessageType.NEW_STREAM_OFFLINE,
+            payload: streamData,
+        };
 
-        ws.on("message", (message) => {
-            const parsedMessage: WebSocketMessage = JSON.parse(message.toString());
-            onMessage(ws, parsedMessage);
-        });
-    });
-
-    wss.on("error", (error: { message: any; }) => {
-        logger.error(`WebSocket server error: ${error.message}`);
-    });
-}
-
-function onMessage(ws: WebSocket, message: WebSocketMessage): void {
-    switch (message.type) {
-        case WebSocketMessageType.MESSAGE:
-            logger.info("Message reçu :", message.payload);
-            break;
-        case WebSocketMessageType.ASK_STREAMS:
-            const streamsMessage: WebSocketMessage = {
-                type: WebSocketMessageType.STREAMS,
-                payload: onlineStreamers,
-            };
-            send(streamsMessage, ws);
-            break;
-        case WebSocketMessageType.ASK_STREAM:
-            const streamData = onlineStreamers.find((stream) => stream.user_name === message.payload);
-            if (streamData) {
-                const streamMessage: WebSocketMessage = {
-                    type: WebSocketMessageType.STREAMS,
-                    payload: streamData,
-                };
-                send(streamMessage, ws);
-            } else {
-                logger.warn("Stream introuvable :", message.payload);
-                const errorMessage: WebSocketMessage = {
-                    type: WebSocketMessageType.MESSAGE,
-                    payload: `Stream introuvable : ${message.payload}`,
-                };
-                send(errorMessage, ws);
-            }
-            break;
-        default:
-            logger.warn("Message non géré :", JSON.stringify(message));
-            break;
+        this.broadcast(JSON.stringify(message));
     }
 }
 
-export function onStreamOnline(streamData: StreamData): void {
-    const message: WebSocketMessage = {
-        type: WebSocketMessageType.NEW_STREAM_ONLINE,
-        payload: streamData,
-    };
-
-    broadcast(JSON.stringify(message));
-}
-
-export function onStreamOffline(streamData: StreamData): void {
-    const message: WebSocketMessage = {
-        type: WebSocketMessageType.NEW_STREAM_OFFLINE,
-        payload: streamData,
-    };
-
-    broadcast(JSON.stringify(message));
-}
-
-function send(message: WebSocketMessage, ws: WebSocket): void {
-    ws.send(JSON.stringify(message));
-}
-
-export function broadcast(message: string): void {
-    wss.clients.forEach((client) => {
-        if (client.readyState === 1) {
-            client.send(message);
-        }
-    });
-}
+export const webSocketService = new WebSocketService(config.websocket.port);
