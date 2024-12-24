@@ -1,0 +1,23 @@
+{
+  "name": "twitch-stream-retriever",
+  "version": "0.1.0",
+  "description": "",
+  "main": "dist/index.cjs",
+  "type": "module",
+  "scripts": {
+    "start": "npm run build && node .",
+    "build": "tsup src/index.ts --minify"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/ws": "^8.5.13",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "ws": "^8.18.0"
+  }
+}
