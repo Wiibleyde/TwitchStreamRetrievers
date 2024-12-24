@@ -36,8 +36,15 @@ enum Commands {
     HELP = "help",
 }
 
+const commands = Object.values(Commands);
+
 rl.on("line", (line) => {
     const command = line.trim().toLowerCase();
+
+    if(command === "") {
+        rl.prompt();
+        return;
+    }
 
     switch (command) {
         case Commands.EXIT:
@@ -56,5 +63,30 @@ rl.on("line", (line) => {
             logger.warn("Commande inconnue :", command);
             logger.info("Tapez 'help' pour afficher la liste des commandes disponibles");
             break;
+    }
+});
+
+rl.on("tab", (line) => {
+    const hits = commands.filter((c) => c.startsWith(line.trim().toLowerCase()));
+    if (hits.length === 1) {
+        rl.write(null, { ctrl: true, name: "u" });
+        rl.write(hits[0]);
+        rl.prompt(true);
+    } else if (hits.length > 1) {
+        logger.info("Suggestions :", hits.join(", "));
+        rl.prompt();
+    } else {
+        rl.prompt();
+    }
+});
+
+(rl as any).input.on("keypress", (char: string, key: { name: string }) => {
+    if (key && key.name === "tab") {
+        const line = rl.line.trim().toLowerCase();
+        const hits = commands.filter((c) => c.startsWith(line));
+        if (hits.length === 0) {
+            return false; // Prevent tab character if no suggestions are found
+        }
+        rl.emit("tab", rl.line);
     }
 });
