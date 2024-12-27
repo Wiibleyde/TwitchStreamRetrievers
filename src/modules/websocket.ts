@@ -121,6 +121,10 @@ export class WebSocketService {
 
         this.broadcast(JSON.stringify(message));
     }
+
+    public getClients(): Set<WebSocket> {
+        return this.wss.clients;
+    }
 }
 
 export const webSocketService = new WebSocketService(config.websocket.port);

@@ -34,6 +34,7 @@ enum Commands {
     QUIT = "quit",
     STREAMERS = "streamers",
     HELP = "help",
+    CLIENTS = "clients",
 }
 
 const commands = Object.values(Commands);
@@ -58,6 +59,9 @@ rl.on("line", (line) => {
             logger.info("Commandes disponibles :");
             logger.info("- exit, quit : Quitter l'application");
             logger.info("- streamers : Afficher la liste des streamers en direct");
+            break;
+        case Commands.CLIENTS:
+            logger.info("Clients connectés :", webSocketService.getClients().size);
             break;
         default:
             logger.warn("Commande inconnue :", command);
