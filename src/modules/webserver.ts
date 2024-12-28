@@ -1,6 +1,7 @@
 import express, { Request, Response } from "express";
 import { twitchService } from "./twitch";
 import { logger } from "@/logger";
+import { verifyToken } from "@/auth"; // Import the token verification function
 
 const DEFAULT_PATH = "/api/v1";
 
@@ -18,6 +19,16 @@ export class WebServer {
     }
 
     private setupRoutes(): void {
+        this.app.use((req: Request, res: Response, next) => {
+            const token = req.headers.authorization?.split(" ")[1];
+            if (!token || !verifyToken(token)) {
+                res.status(401).send({ message: "Unauthorized" });
+                logger.warn("Requête non autorisée");
+                return;
+            }
+            next();
+        });
+
         this.app.get("/", (req: Request, res: Response) => {
             const response: ApiResponse = {
                 message: "Yo.",

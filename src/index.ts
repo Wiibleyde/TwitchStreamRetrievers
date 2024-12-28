@@ -4,6 +4,7 @@ import { twitchService } from "./modules/twitch";
 import { WebServer } from "./modules/webserver";
 import readline from "node:readline";
 import { webSocketService } from "./modules/websocket"; // Import the existing instance
+import { verifyToken } from "./auth"; // Import the token verification function
 
 export const rl = readline.createInterface({
     input: process.stdin,

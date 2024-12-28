@@ -19,4 +19,7 @@ export const config = {
     websocket: {
         port: parseInt(WEBSOCKET_PORT, 10),
     },
+    auth: {
+        token: process.env.AUTH_TOKEN || "default_token",
+    },
 };

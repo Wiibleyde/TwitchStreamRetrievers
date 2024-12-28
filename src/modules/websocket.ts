@@ -2,6 +2,7 @@ import { logger } from "@/logger";
 import { WebSocket, WebSocketServer } from "ws";
 import { twitchService, StreamData } from "./twitch";
 import { config } from "@/config";
+import { verifyToken } from "@/auth";
 
 enum WebSocketMessageType {
     MESSAGE = "MESSAGE",
@@ -31,7 +32,14 @@ export class WebSocketService {
             logger.info(`WebSocket server listening on port ${this.port}`);
         });
 
-        this.wss.on("connection", (ws) => {
+        this.wss.on("connection", (ws, req) => {
+            const token = req.url?.split("token=")[1];
+            if (!token || !verifyToken(token)) {
+                ws.close(1008, "Invalid or missing token");
+                logger.warn("Connexion refusée : token invalide ou manquant");
+                return;
+            }
+
             logger.info("Nouvelle connexion");
             const message: WebSocketMessage = {
                 type: WebSocketMessageType.STREAMS,
