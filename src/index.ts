@@ -4,7 +4,7 @@ import { twitchService } from "./modules/twitch";
 import { WebServer } from "./modules/webserver";
 import readline from "node:readline";
 import { webSocketService } from "./modules/websocket"; // Import the existing instance
-import { verifyToken } from "./auth"; // Import the token verification function
+import { StreamerList } from "./modules/streamerList";
 
 export const rl = readline.createInterface({
     input: process.stdin,
@@ -15,6 +15,7 @@ export const rl = readline.createInterface({
 twitchService; // Initialize TwitchService
 
 const webServer = new WebServer(config.webserver.port);
+export const streamerList = new StreamerList();
 
 webServer.start();
 webSocketService.start(); // Use the existing instance

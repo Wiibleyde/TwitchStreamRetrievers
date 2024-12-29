@@ -1,6 +1,7 @@
 import { config } from "@/config";
 import { logger } from "@/logger";
 import { webSocketService } from "./websocket";
+import { streamerList } from "..";
 
 const CLIENT_ID = config.twitch.clientId;
 const CLIENT_SECRET = config.twitch.clientSecret;
@@ -8,7 +9,6 @@ const CLIENT_SECRET = config.twitch.clientSecret;
 class TwitchService {
     private OAUTH_TOKEN = ""; // Le token sera mis à jour dynamiquement
     private tokenExpiryTime = 0; // Timestamp when the token expires
-    private streamerList = ["wiibleyde", "antoinedaniel", "otplol_"];
     private refreshInterval = 5000; // Intervalle en millisecondes (5 secondes)
     public onlineStreamers: StreamData[] = [];
 
@@ -62,7 +62,7 @@ class TwitchService {
     }
 
     private generateUrlParams(): string {
-        return this.streamerList.map((streamer) => `user_login=${streamer}`).join("&");
+        return streamerList.getStreamers().map((streamer) => `user_login=${streamer}`).join("&");
     }
 
     private async startAutoRefresh(): Promise<void> {

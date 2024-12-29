@@ -3,6 +3,7 @@ import { WebSocket, WebSocketServer } from "ws";
 import { twitchService, StreamData } from "./twitch";
 import { config } from "@/config";
 import { verifyToken } from "@/auth";
+import { streamerList } from "..";
 
 enum WebSocketMessageType {
     MESSAGE = "MESSAGE",
@@ -11,6 +12,7 @@ enum WebSocketMessageType {
     NEW_STREAM_OFFLINE = "STREAM_OFFLINE",
     ASK_STREAMS = "ASK_STREAMS",
     ASK_STREAM = "ASK_STREAM",
+    ADD_STREAM = "ADD_STREAM",
 }
 
 interface WebSocketMessage {
@@ -93,6 +95,9 @@ export class WebSocketService {
                     };
                     this.send(errorMessage, ws);
                 }
+                break;
+            case WebSocketMessageType.ADD_STREAM:
+                streamerList.addStreamer(message.payload);
                 break;
             default:
                 logger.warn("Message non géré :", JSON.stringify(message));
