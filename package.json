@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "npm run build && node .",
-    "build": "tsup src/index.ts --minify"
+    "build": "tsup src/index.ts --minify",
+    "dev": "tsx watch src/index.ts"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

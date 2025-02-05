@@ -11,6 +11,7 @@ class TwitchService {
     private tokenExpiryTime = 0; // Timestamp when the token expires
     private refreshInterval = 5000; // Intervalle en millisecondes (5 secondes)
     public onlineStreamers: StreamData[] = [];
+    public offlineStreamDatas: OfflineStreamData[] = [];
 
     constructor() {
         this.startAutoRefresh();
@@ -61,16 +62,46 @@ class TwitchService {
         }
     }
 
+    private async getOfflineStreamsData(): Promise<OfflineStreamData[]> {
+        if (Date.now() >= this.tokenExpiryTime) {
+            await this.getOAuthToken();
+        }
+        const url = `https://api.twitch.tv/helix/users?${this.generateOfflineUrlParams()}`;
+        const headers = {
+            "Client-Id": CLIENT_ID,
+            "Authorization": `Bearer ${this.OAUTH_TOKEN}`,
+        };
+
+        try {
+            const response = await fetch(url, { headers });
+            const data: OfflineStreamResponse = await response.json();
+            const offlineStreamers = data.data;
+            return offlineStreamers;
+        } catch (error) {
+            logger.error("Erreur lors de la récupération des streamers hors ligne :", error);
+            return [];
+        }
+    }
+
+    public getOfflineStreamData(login: string): OfflineStreamData | undefined {
+        return this.offlineStreamDatas.find((streamer) => streamer.login === login.toLowerCase());
+    }
+
     private generateUrlParams(): string {
         return streamerList.getStreamers().map((streamer) => `user_login=${streamer}`).join("&");
+    }
+
+    private generateOfflineUrlParams(): string {
+        return streamerList.getStreamers().map((streamer) => `login=${streamer}`).join("&");
     }
 
     private async startAutoRefresh(): Promise<void> {
         await this.getOAuthToken();
         this.onlineStreamers = await this.areStreamersLive();
-        logger.debug("Streamers en direct :", this.onlineStreamers.map((stream) => stream.user_name).join(", "));
+        this.offlineStreamDatas = await this.getOfflineStreamsData();
         setInterval(async () => {
             const oldStreamers = this.onlineStreamers;
+            this.offlineStreamDatas = await this.getOfflineStreamsData();
             this.onlineStreamers = await this.areStreamersLive();
             const missingStreamers = oldStreamers.filter((oldStream) => !this.onlineStreamers.some((stream) => stream.user_name === oldStream.user_name));
             const newStreamers = this.onlineStreamers.filter((stream) => !oldStreamers.some((oldStream) => oldStream.user_name === stream.user_name));
@@ -115,7 +146,25 @@ export interface StreamData {
     is_mature: boolean;
 }
 
+export interface OfflineStreamData {
+    id: string,
+    login: string,
+    display_name: string,
+    type: string
+    broadcaster_type: string,
+    description: string,
+    profile_image_url: string,
+    offline_image_url: string
+    view_count: number
+    email?: string
+    created_at: string
+}
+
 export interface StreamResponse {
     data: StreamData[];
     pagination: StreamPagination;
+}
+
+export interface OfflineStreamResponse {
+    data: OfflineStreamData[];
 }

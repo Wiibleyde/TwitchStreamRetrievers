@@ -4,6 +4,7 @@ import { twitchService, StreamData } from "./twitch";
 import { config } from "@/config";
 import { verifyToken } from "@/auth";
 import { streamerList } from "..";
+import { StreamerListErrors } from "./streamerList";
 
 enum WebSocketMessageType {
     MESSAGE = "MESSAGE",
@@ -11,7 +12,6 @@ enum WebSocketMessageType {
     NEW_STREAM_ONLINE = "NEW_STREAM_ONLINE",
     NEW_STREAM_OFFLINE = "STREAM_OFFLINE",
     ASK_STREAMS = "ASK_STREAMS",
-    ASK_STREAM = "ASK_STREAM",
     ADD_STREAM = "ADD_STREAM",
 }
 
@@ -45,9 +45,11 @@ export class WebSocketService {
             logger.info("Nouvelle connexion");
             const message: WebSocketMessage = {
                 type: WebSocketMessageType.STREAMS,
-                payload: twitchService.onlineStreamers,
+                payload: {
+                    online: twitchService.onlineStreamers,
+                    offline: twitchService.offlineStreamDatas,
+                },
             };
-
             ws.send(JSON.stringify(message));
 
             ws.on("close", () => {
@@ -79,23 +81,6 @@ export class WebSocketService {
                 };
                 this.send(streamsMessage, ws);
                 break;
-            case WebSocketMessageType.ASK_STREAM:
-                const streamData = twitchService.onlineStreamers.find((stream) => stream.user_name === message.payload);
-                if (streamData) {
-                    const streamMessage: WebSocketMessage = {
-                        type: WebSocketMessageType.STREAMS,
-                        payload: streamData,
-                    };
-                    this.send(streamMessage, ws);
-                } else {
-                    logger.warn("Stream introuvable :", message.payload);
-                    const errorMessage: WebSocketMessage = {
-                        type: WebSocketMessageType.MESSAGE,
-                        payload: `Stream introuvable : ${message.payload}`,
-                    };
-                    this.send(errorMessage, ws);
-                }
-                break;
             case WebSocketMessageType.ADD_STREAM:
                 streamerList.addStreamer(message.payload);
                 break;
@@ -118,18 +103,27 @@ export class WebSocketService {
     }
 
     public onStreamOnline(streamData: StreamData): void {
+        const offlineStreamData = twitchService.getOfflineStreamData(streamData.user_name);
+        logger.debug("Offline stream data", offlineStreamData);
         const message: WebSocketMessage = {
             type: WebSocketMessageType.NEW_STREAM_ONLINE,
-            payload: streamData,
+            payload: {
+                online: streamData,
+                offline: offlineStreamData,
+            }
         };
 
         this.broadcast(JSON.stringify(message));
     }
 
     public onStreamOffline(streamData: StreamData): void {
+        const offlineStreamData = twitchService.getOfflineStreamData(streamData.user_name);
         const message: WebSocketMessage = {
             type: WebSocketMessageType.NEW_STREAM_OFFLINE,
-            payload: streamData,
+            payload: {
+                online: streamData,
+                offline: offlineStreamData,
+            }
         };
 
         this.broadcast(JSON.stringify(message));
