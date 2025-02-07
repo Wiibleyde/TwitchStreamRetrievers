@@ -1,6 +1,6 @@
 import { logger } from "@/logger";
 import { WebSocket, WebSocketServer } from "ws";
-import { twitchService, StreamData } from "./twitch";
+import { twitchService, StreamData, OfflineStreamData } from "./twitch";
 import { config } from "@/config";
 import { verifyToken } from "@/auth";
 import { streamerList } from "..";
@@ -43,11 +43,16 @@ export class WebSocketService {
             }
 
             logger.info("Nouvelle connexion");
+            const offlineStreams = twitchService.offlineStreamDatas.filter((offlineStreamData) => {
+                return !twitchService.onlineStreamers.some((onlineStreamer) => onlineStreamer.user_name.toLowerCase() === offlineStreamData.login);
+            });
+            logger.debug("Offline streams", offlineStreams.map((stream) => stream.login).join(", "));
             const message: WebSocketMessage = {
                 type: WebSocketMessageType.STREAMS,
                 payload: {
                     online: twitchService.onlineStreamers,
-                    offline: twitchService.offlineStreamDatas,
+                    offline: offlineStreams,
+                    offlineData: twitchService.offlineStreamDatas,
                 },
             };
             ws.send(JSON.stringify(message));
@@ -82,7 +87,14 @@ export class WebSocketService {
                 this.send(streamsMessage, ws);
                 break;
             case WebSocketMessageType.ADD_STREAM:
-                streamerList.addStreamer(message.payload);
+                const success = streamerList.addStreamer(message.payload);
+                if(success === StreamerListErrors.UNKNOWN) {
+                    if(twitchService.onlineStreamers.some((stream) => stream.user_name.toLowerCase() === message.payload)) {
+                        this.onStreamOnline(twitchService.getStreamData(message.payload) as StreamData);
+                    } else {
+                        this.onStreamOffline(twitchService.getStreamData(message.payload) as StreamData);
+                    }
+                }
                 break;
             default:
                 logger.warn("Message non géré :", JSON.stringify(message));

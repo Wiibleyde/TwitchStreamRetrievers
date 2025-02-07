@@ -87,6 +87,10 @@ class TwitchService {
         return this.offlineStreamDatas.find((streamer) => streamer.login === login.toLowerCase());
     }
 
+    public getStreamData(login: string): StreamData | undefined {
+        return this.onlineStreamers.find((streamer) => streamer.user_name.toLowerCase() === login.toLowerCase());
+    }
+
     private generateUrlParams(): string {
         return streamerList.getStreamers().map((streamer) => `user_login=${streamer}`).join("&");
     }
